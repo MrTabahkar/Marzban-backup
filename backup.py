@@ -13,7 +13,7 @@ OPT_PATH = "/opt/marzban"
 CONFIG_FILE = "config.json"
 
 # خواندن تنظیمات کاربر
-with open(CONFIG_FILE, "r") as f:
+with open(CONFIG_FILE) as f:
     config = json.load(f)
 
 telegram_token = config["token"]
@@ -50,8 +50,19 @@ bot = Bot(token=telegram_token)
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 BACKUP_ZIP = f"marzban_backup_{timestamp}.zip"
 
+# حذف بکاپ‌های قدیمی قبل از ساخت فایل جدید
+def cleanup_old_backups():
+    for file in os.listdir():
+        if file.startswith("marzban_backup_") and file.endswith(".zip"):
+            try:
+                os.remove(file)
+                print(f"🗑 Old backup removed: {file}")
+            except Exception as e:
+                print(f"❌ Could not remove {file}: {e}")
+
 # ساخت بکاپ
 def create_backup():
+    cleanup_old_backups()  # حذف بکاپ‌های قدیمی
     with zipfile.ZipFile(BACKUP_ZIP, 'w', zipfile.ZIP_DEFLATED) as zipf:
         for folder in [VAR_PATH, OPT_PATH]:
             if not os.path.exists(folder):
@@ -77,12 +88,17 @@ def send_backup():
         print("✅ Backup sent to Telegram successfully!")
     except TelegramError as e:
         print(f"❌ Telegram error: {e}")
+    except Exception as e:
+        print(f"❌ Unexpected error: {e}")
 
-# حذف فایل زیپ بعد از ارسال
+# حذف فایل زیپ بعد از ارسال موفق
 def cleanup():
     if os.path.exists(BACKUP_ZIP):
-        os.remove(BACKUP_ZIP)
-        print(f"🗑 Backup file {BACKUP_ZIP} removed from server.")
+        try:
+            os.remove(BACKUP_ZIP)
+            print(f"🗑 Backup file {BACKUP_ZIP} removed from server.")
+        except Exception as e:
+            print(f"❌ Could not remove backup file: {e}")
 
 if __name__ == "__main__":
     create_backup()
