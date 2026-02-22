@@ -1,20 +1,61 @@
 # Marzban Telegram Backup Bot
-# programmer @MOTFKRM (version -- 1.0.0)
 
-این پروژه یک ربات خودکار بکاپ تلگرام برای پوشه‌های `/var/lib/marzban` و `/opt/marzban` است.  
-با این ابزار، هر فاصله ساعتی که مشخص کنید، بکاپ ساخته شده و به تلگرام شما ارسال می‌شود.
+This project is an automated Telegram backup bot for important Marzban directories:
 
-## ویژگی‌ها
-- بکاپ خودکار پوشه‌ها `/var/lib/marzban` و `/opt/marzban`
-- ارسال به تلگرام با توکن و chat_id دلخواه
-- کپشن شامل **کپشن کاربر + اسپانسر ثابت شما**
-- Cron job خودکار برای اجرای منظم
-- بعد از ارسال بکاپ، فایل زیپ روی سرور حذف می‌شود
-- آماده اجرا با یک دستور (GitHub-ready)
+- /var/lib/marzban
+- /opt/marzban
 
-## پیش‌نیازها
-- Python 3.x
-- نصب کتابخانه `python-telegram-bot`:
+Backups are automatically created and sent to your Telegram at the interval you specify.  
+After sending, the zip file is automatically deleted from the server.
 
-```bash
-pip install python-telegram-bot
+-
+
+## Features
+
+- Automatic backup of Marzban folders  
+- Send backups to Telegram with your own bot token and chat_id  
+- Captions include:
+  - Server IP
+  - User caption
+  - GitHub link  
+- Automatic Cron job for scheduled backups  
+- Easy setup with a single command
+
+-
+
+## Requirements
+
+- Python 3.x  
+- python-telegram-bot library (installed automatically during setup)
+
+---
+
+## Easy Installation
+
+Simply run the following commands on your server:
+
+`bash
+git clone https://github.com/MrTabahkar/Marzban-backup.git
+cd Marzban-backup
+python3 setup.py
+During `setup.py` execution, the following information will be requested:
+
+1. Telegram bot token  
+2. Numeric Chat ID  
+3. Custom caption  
+4. Backup interval (e.g., every 2 hours)
+
+After that, a Cron job is automatically created and backups will run at the specified interval.
+
+## Manual Backup (Optional)
+`bash
+python3 backup.py
+
+## Notes
+• config.json stores token, chat_id, and user caption
+• Cron job runs according to the interval, no need to keep the script running
+• Zip file is deleted after sending each backup
+
+## Support
+📱 Telegram: @MOTFKRM
+📢 Channel: @TFKORAT
