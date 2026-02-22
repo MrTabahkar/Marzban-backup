@@ -1,3 +1,7 @@
+# MOTFKRM Marzban Backup
+
+**For Persian speakers:** see [README-FA.md](README-FA.md) for instructions in Farsi.
+
 # Marzban Telegram Backup Bot
 
 This project is an automated Telegram backup bot for important Marzban directories:
@@ -30,9 +34,9 @@ Simply run the following commands on your server:
 
 `git clone https://github.com/MrTabahkar/Marzban-backup.git`
 `cd Marzban-backup`
-`python3 setup.py`
+`bash setup.sh`
 
-During `setup.py` execution, the following information will be requested:
+During `setup.sh` execution, the following information will be requested:
 
 1. Telegram bot token  
 2. Numeric Chat ID  
@@ -43,8 +47,8 @@ After that, a Cron job is automatically created and backups will run at the spec
 
 ## Manual Backup (Optional)
 
+`source venv/bin/activate`
 `python3 backup.py`
-
 ## Notes
 
 - config.json stores token, chat_id, and user caption  
@@ -62,5 +66,6 @@ However, we hope that in the future the project can be **expanded and improved**
 
 ## Support
 
+⛓️‍💥GitHub: [Marzban-Backup](https://github.com/MrTabahkar/Marzban-backup)
 📱 Telegram: [@MOTFKRM](https://t.me/MOTFKRM)  
 📢 Channel: [@TFKORAT](https://t.me/TFKORAT)
