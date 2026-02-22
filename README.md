@@ -28,12 +28,9 @@ After sending, the zip file is automatically deleted from the server.
 
 Simply run the following commands on your server:
 
-git clone https://github.com/MrTabahkar/Marzban-backup.git
-cd Marzban-backup
-python3 setup.py
-git clone https://github.com/MrTabahkar/Marzban-backup.git
-cd Marzban-backup
-python3 setup.py
+`git clone https://github.com/MrTabahkar/Marzban-backup.git`
+`cd Marzban-backup`
+`python3 setup.py`
 
 During `setup.py` execution, the following information will be requested:
 
@@ -46,13 +43,22 @@ After that, a Cron job is automatically created and backups will run at the spec
 
 ## Manual Backup (Optional)
 
-python3 backup.py
+`python3 backup.py`
 
 ## Notes
 
 - config.json stores token, chat_id, and user caption  
 - Cron job runs according to the interval, no need to keep the script running  
 - Zip file is deleted after sending each backup
+
+
+## Disclaimer & Future Plans
+
+This project is currently intended for **personal use only** and was not initially designed for public distribution.  
+
+The main goal was to create a simple and functional backup bot for private use.  
+
+However, we hope that in the future the project can be **expanded and improved** with additional features, broader compatibility, and enhanced automation.
 
 ## Support
 
