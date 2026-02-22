@@ -1,50 +1,60 @@
 #!/bin/bash
 
-# ======================================================
+# =========================================================
 # MOTFKRM Marzban Backup Installer
-# ======================================================
+# =========================================================
 
 echo "=================================================="
 echo "MOTFKRM Marzban Backup Installer"
 echo "=================================================="
 
-# ساخت venv
-if [ ! -d "venv" ]; then
-    echo "🛠 Creating Python virtual environment..."
-    python3 -m venv venv
-else
-    echo "✅ Virtual environment already exists."
+# === متغیرها ===
+VENV_DIR="venv"
+REQUIREMENTS="requirements.txt"
+BACKUP_SCRIPT="backup.py"
+
+# === ۱. ساخت venv و فعال‌سازی ===
+if [ ! -d "$VENV_DIR" ]; then
+    echo "Creating virtual environment..."
+    python3 -m venv "$VENV_DIR"
 fi
 
-# فعال کردن venv
-echo "⚡️ Activating virtual environment..."
-source venv/bin/activate
+echo "Activating virtual environment..."
+source "$VENV_DIR/bin/activate"
 
-# بروزرسانی pip
-echo "⬆️ Upgrading pip..."
+# === ۲. بروزرسانی pip و نصب پیش‌نیازها ===
+echo "Upgrading pip..."
 pip install --upgrade pip
 
-# نصب پیش‌نیازها
-if [ -f "requirements.txt" ]; then
-    echo "📦 Installing required packages from requirements.txt..."
-    pip install -r requirements.txt
-else
-    echo "❌ requirements.txt not found!"
-    exit 1
-fi
+echo "Installing required packages..."
+pip install -r "$REQUIREMENTS"
 
-# اجرای setup_backup.py برای گرفتن اطلاعات کاربر
-echo "📝 Running setup_backup.py to configure your bot..."
-python3 setup_backup.py
+# === ۳. گرفتن اطلاعات از کاربر ===
+read -p "Enter your Telegram Bot Token: " TOKEN
+read -p "Enter your Telegram Chat ID (numbers only): " CHAT_ID
+read -p "Enter your custom caption for backup: " CAPTION
+read -p "Enter backup interval in hours (e.g., 2): " INTERVAL_HOURS
 
-# اجرای یکبار backup.py برای تست
-echo "🚀 Running backup.py to test sending backup..."
-python3 backup.py
+# === ۴. ذخیره config.json ===
+cat > config.json <<EOL
+{
+    "token": "$TOKEN",
+    "chat_id": $CHAT_ID,
+    "caption": "$CAPTION",
+    "interval_hours": $INTERVAL_HOURS
+}
+EOL
 
+echo "Settings saved to config.json."
+
+# === ۵. اجرای یکبار backup.py ===
+echo "Running initial backup..."
+python3 "$BACKUP_SCRIPT"
+
+# === ۶. تنظیم Cron Job ===
+CRON_CMD="0 */$INTERVAL_HOURS * * * cd $(pwd) && $VENV_DIR/bin/python3 $BACKUP_SCRIPT"
+(crontab -l 2>/dev/null; echo "$CRON_CMD") | crontab -
+
+echo "Cron job scheduled every $INTERVAL_HOURS hours."
 echo "=================================================="
-echo "✅ Installation and setup complete!"
-echo "Your backups will now run automatically via cron job at the interval you specified."
-echo "=================================================="
-
-# اتمام script
-deactivate
+echo "Setup complete! Your backups will run automatically."
