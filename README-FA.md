@@ -37,21 +37,10 @@
 
 `source venv/bin/activate&&python3 backup.py`
 
-## ساختار پروژه
-
-Marzban-backup/
-│
-├─ backup.py           # اسکریپت اصلی بکاپ
-├─ setup_backup.py     # گرفتن اطلاعات کاربر و ایجاد cron job
-├─ requirements.txt    # لیست پیش‌نیازها
-├─ setup.sh            # نصب خودکار و اجرای setup
-├─ setup.py            # نصب با استاندارد Python (اختیاری)
-└─ config.json         # ذخیره تنظیمات کاربر
 
 ## تنظیمات backup
 
 - مسیرهای بکاپ: `/var/lib/marzban` و `/opt/marzban`
-- فایل ZIP با timestamp ساخته می‌شود: `marzban_backup_YYYYMMDD_HHMMSS.zip`
 - مسیرهای داخل ZIP نسبی هستند و ساختار دایرکتوری حفظ می‌شود
 - کپشن شامل IP سرور، کپشن کاربر، لینک GitHub و اسپانسر HTML می‌باشد
 
