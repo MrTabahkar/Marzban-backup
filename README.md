@@ -32,9 +32,7 @@ After sending, the zip file is automatically deleted from the server.
 
 Simply run the following commands on your server:
 
-`git clone https://github.com/MrTabahkar/Marzban-backup.git`
-`cd Marzban-backup`
-`bash setup.sh`
+`git clone https://github.com/MrTabahkar/Marzban-backup.git&&cd Marzban-backup&&bash setup.sh`
 
 During `setup.sh` execution, the following information will be requested:
 
@@ -47,8 +45,7 @@ After that, a Cron job is automatically created and backups will run at the spec
 
 ## Manual Backup (Optional)
 
-`source venv/bin/activate`
-`python3 backup.py`
+`source venv/bin/activate&&python3 backup.py`
 ## Notes
 
 - config.json stores token, chat_id, and user caption  

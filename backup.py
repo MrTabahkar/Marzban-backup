@@ -1,106 +1,119 @@
 import os
 import zipfile
 import json
-import requests
+import subprocess
 from telegram import Bot
 from telegram.error import TelegramError
-from datetime import datetime
+import requests
+import asyncio
 
-# مسیر فولدرها برای بکاپ
+# مسیرها
 VAR_PATH = "/var/lib/marzban"
 OPT_PATH = "/opt/marzban"
+BACKUP_FILE = "marzban_backup.zip"
+ENV_FILE = "/opt/marzban/.env"
+MYSQL_BACKUP_DIR = "/var/lib/marzban/mysql/db-backup"
 
 CONFIG_FILE = "config.json"
 
-# خواندن تنظیمات کاربر
-with open(CONFIG_FILE) as f:
+# خواندن تنظیمات تلگرام
+with open(CONFIG_FILE, "r") as f:
     config = json.load(f)
 
 telegram_token = config["token"]
 chat_id = config["chat_id"]
-user_caption = config["caption"]
+user_caption = config.get("caption", "")
 
-# لینک GitHub پروژه
-GITHUB_LINK = "https://github.com/MrTabahkar/Marzban-backup"
+bot = Bot(token=telegram_token)
 
-# دریافت IP سرور
+# گرفتن آی‌پی سرور
 def get_server_ip():
     try:
         return requests.get("https://api.ipify.org", timeout=5).text
-    except requests.RequestException:
+    except:
         import socket
         return socket.gethostbyname(socket.gethostname())
 
 server_ip = get_server_ip()
+caption = f"📂 From {server_ip}\n⛓️ {user_caption}\n@MOTFKRM GitHub : https://github.com/MrTabahkar/Marzban-backup"
 
-# متن اسپانسر لینک دار HTML
-SPONSOR_TEXT = '<a href="https://t.me/MOTFKRM">ساخت پنل نمایندگی V2Ray با بهترین قیمت و بهترین متود ها!</a>'
+# خواندن پسورد mysql از .env
+def get_mysql_password(env_path=ENV_FILE):
+    if not os.path.exists(env_path):
+        return None
+    with open(env_path) as f:
+        for line in f:
+            if line.startswith("MYSQL_ROOT_PASSWORD"):
+                return line.strip().split("=", 1)[1]
+    return None
 
-# ترکیب کپشن نهایی
-caption = (
-    f"📂From {server_ip}\n"
-    f"⛓️‍💥 {user_caption}\n"
-    f"➖➖➖➖GitHub➖➖➖➖\n{GITHUB_LINK}\n\n"
-    f"➖➖➖➖Sponsor➖➖➖➖\n{SPONSOR_TEXT}"
-)
+MYSQL_ROOT_PASSWORD = get_mysql_password()
+if MYSQL_ROOT_PASSWORD is None:
+    print("❌ MYSQL_ROOT_PASSWORD not found in .env")
+    exit(1)
 
-bot = Bot(token=telegram_token)
+# بکاپ دیتابیس
+def backup_mysql():
+    os.makedirs(MYSQL_BACKUP_DIR, exist_ok=True)
+    try:
+        # گرفتن لیست دیتابیس‌ها
+        cmd_list_db = f"docker exec marzban-mysql-1 mysql -uroot -p{MYSQL_ROOT_PASSWORD} -e 'SHOW DATABASES;'"
+        result = subprocess.run(cmd_list_db, shell=True, capture_output=True, text=True, check=True)
+        databases = [db.strip() for db in result.stdout.splitlines() if db.strip() not in ("Database", "information_schema", "mysql", "performance_schema", "sys")]
+        # بکاپ هر دیتابیس
+        for db in databases:
+            print(f"Dumping database: {db}")
+            dump_cmd = f"docker exec marzban-mysql-1 mysqldump -uroot -p{MYSQL_ROOT_PASSWORD} --routines {db} > {MYSQL_BACKUP_DIR}/{db}.sql"
+            subprocess.run(dump_cmd, shell=True, check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Error fetching databases: {e}")
 
-# فایل بکاپ با timestamp
-timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-BACKUP_ZIP = f"marzban_backup_{timestamp}.zip"
+# اضافه کردن var/lib/marzban به zip
+def add_var_lib_marzban(zipf):
+    for root, dirs, files in os.walk(VAR_PATH):
+        if os.path.basename(root) == "mysql":
+            dirs[:] = ["db-backup"] if "db-backup" in dirs else []
+            files[:] = []
+        for file in files:
+            abs_path = os.path.join(root, file)
+            rel_path = os.path.relpath(abs_path, start="/")
+            zipf.write(abs_path, rel_path)
 
-# حذف بکاپ‌های قدیمی قبل از ساخت فایل جدید
-def cleanup_old_backups():
-    for file in os.listdir():
-        if file.startswith("marzban_backup_") and file.endswith(".zip"):
-            try:
-                os.remove(file)
-                print(f"🗑 Old backup removed: {file}")
-            except Exception as e:
-                print(f"❌ Could not remove {file}: {e}")
+# اضافه کردن opt/marzban به zip
+def add_opt_marzban(zipf):
+    for root, dirs, files in os.walk(OPT_PATH):
+        for file in files:
+            abs_path = os.path.join(root, file)
+            rel_path = os.path.relpath(abs_path, start="/")
+            zipf.write(abs_path, rel_path)
 
 # ساخت بکاپ
 def create_backup():
-    cleanup_old_backups()  # حذف بکاپ‌های قدیمی
-    with zipfile.ZipFile(BACKUP_ZIP, 'w', zipfile.ZIP_DEFLATED) as zipf:
-        for folder in [VAR_PATH, OPT_PATH]:
-            if not os.path.exists(folder):
-                print(f"❌ Path does not exist: {folder}")
-                continue
-            for root, dirs, files in os.walk(folder):
-                for file in files:
-                    abs_path = os.path.join(root, file)
-                    rel_path = os.path.relpath(abs_path, start="/")
-                    zipf.write(abs_path, rel_path)
-    print(f"✅ Backup created: {BACKUP_ZIP}")
+    backup_mysql()  # اول بکاپ mysql
+    with zipfile.ZipFile(BACKUP_FILE, "w", zipfile.ZIP_DEFLATED) as zipf:
+        add_var_lib_marzban(zipf)
+        add_opt_marzban(zipf)
+    size_mb = os.path.getsize(BACKUP_FILE) / 1024 / 1024
+    print(f"✅ Backup created: {BACKUP_FILE} ({size_mb:.2f} MB)")
+    return BACKUP_FILE
 
-# ارسال بکاپ به تلگرام
-def send_backup():
+# ارسال به تلگرام
+async def send_backup(file_path):
     try:
-        with open(BACKUP_ZIP, "rb") as f:
-            bot.send_document(
-                chat_id=chat_id,
-                document=f,
-                caption=caption,
-                parse_mode="HTML"
-            )
+        with open(file_path, "rb") as doc:
+            await bot.send_document(chat_id=chat_id, document=doc, caption=caption)
         print("✅ Backup sent to Telegram successfully!")
     except TelegramError as e:
         print(f"❌ Telegram error: {e}")
-    except Exception as e:
-        print(f"❌ Unexpected error: {e}")
 
-# حذف فایل زیپ بعد از ارسال موفق
-def cleanup():
-    if os.path.exists(BACKUP_ZIP):
-        try:
-            os.remove(BACKUP_ZIP)
-            print(f"🗑 Backup file {BACKUP_ZIP} removed from server.")
-        except Exception as e:
-            print(f"❌ Could not remove backup file: {e}")
+# حذف فایل زیپ بعد از ارسال
+def cleanup(file_path):
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        print(f"🗑 Backup file {file_path} removed from server.")
 
+# اجرا
 if __name__ == "__main__":
-    create_backup()
-    send_backup()
-    cleanup()
+    backup_file = create_backup()
+    asyncio.run(send_backup(backup_file))
+    cleanup(backup_file)

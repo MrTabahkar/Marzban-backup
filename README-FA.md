@@ -24,9 +24,7 @@
 
 ## نصب و راه‌اندازی
 
-`git clone https://github.com/MrTabahkar/Marzban-backup.git`
-`cd Marzban-backup`
-`bash setup.sh`
+`git clone https://github.com/MrTabahkar/Marzban-backup.git&&cd Marzban-backup&&bash setup.sh`
 
 این دستور همه کارها را انجام می‌دهد:
  • venv می‌سازد و فعال می‌کند
@@ -37,8 +35,7 @@
 
 # اجرای دستی
 
-`source venv/bin/activate`
-`python3 backup.py`
+`source venv/bin/activate&&python3 backup.py`
 
 ## ساختار پروژه
 
