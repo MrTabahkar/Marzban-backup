@@ -1,6 +1,0 @@
-﻿Fix backup script: proper zip splitting & Telegram size handling
-
-- Added automatic zip splitting for large backups (max 50MB per part)
-- Fixed Telegram "Request Entity Too Large (413)" errors
-- Ensured MySQL dump is included correctly without bloating backup
-- Backup now reliably sends all parts in order
