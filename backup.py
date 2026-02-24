@@ -1,22 +1,26 @@
+#!/usr/bin/env python3
 import os
 import zipfile
 import json
 import subprocess
+import asyncio
+import requests
 from telegram import Bot
 from telegram.error import TelegramError
-import requests
-import asyncio
-
+#==========================
+# Developer @MOTFKRM
+#==========================
 # مسیرها
+
 VAR_PATH = "/var/lib/marzban"
 OPT_PATH = "/opt/marzban"
-BACKUP_FILE = "marzban_backup.zip"
-ENV_FILE = "/opt/marzban/.env"
 MYSQL_BACKUP_DIR = "/var/lib/marzban/mysql/db-backup"
-
+ENV_FILE = "/opt/marzban/.env"
 CONFIG_FILE = "config.json"
 
+
 # خواندن تنظیمات تلگرام
+
 with open(CONFIG_FILE, "r") as f:
     config = json.load(f)
 
@@ -26,7 +30,9 @@ user_caption = config.get("caption", "")
 
 bot = Bot(token=telegram_token)
 
+
 # گرفتن آی‌پی سرور
+
 def get_server_ip():
     try:
         return requests.get("https://api.ipify.org", timeout=5).text
@@ -35,9 +41,11 @@ def get_server_ip():
         return socket.gethostbyname(socket.gethostname())
 
 server_ip = get_server_ip()
-caption = f"📂 From {server_ip}\n⛓️ {user_caption}\n@MOTFKRM GitHub : https://github.com/MrTabahkar/Marzban-backup"
+caption = f"📂 From {server_ip}\n⛓️ {user_caption}\n@MOTFKRM GitHub: https://github.com/MrTabahkar/Marzban-backup"
+
 
 # خواندن پسورد mysql از .env
+
 def get_mysql_password(env_path=ENV_FILE):
     if not os.path.exists(env_path):
         return None
@@ -52,68 +60,93 @@ if MYSQL_ROOT_PASSWORD is None:
     print("❌ MYSQL_ROOT_PASSWORD not found in .env")
     exit(1)
 
+
 # بکاپ دیتابیس
+
 def backup_mysql():
     os.makedirs(MYSQL_BACKUP_DIR, exist_ok=True)
-    try:
-        # گرفتن لیست دیتابیس‌ها
-        cmd_list_db = f"docker exec marzban-mysql-1 mysql -uroot -p{MYSQL_ROOT_PASSWORD} -e 'SHOW DATABASES;'"
-        result = subprocess.run(cmd_list_db, shell=True, capture_output=True, text=True, check=True)
-        databases = [db.strip() for db in result.stdout.splitlines() if db.strip() not in ("Database", "information_schema", "mysql", "performance_schema", "sys")]
-        # بکاپ هر دیتابیس
-        for db in databases:
-            print(f"Dumping database: {db}")
-            dump_cmd = f"docker exec marzban-mysql-1 mysqldump -uroot -p{MYSQL_ROOT_PASSWORD} --routines {db} > {MYSQL_BACKUP_DIR}/{db}.sql"
-            subprocess.run(dump_cmd, shell=True, check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Error fetching databases: {e}")
+    dump_file = os.path.join(MYSQL_BACKUP_DIR, "marzban.sql")
+    print(f"🛢 Dumping MySQL to {dump_file} ...")
+    cmd = f"docker exec marzban-mysql-1 mysqldump -uroot -p{MYSQL_ROOT_PASSWORD} --routines marzban > {dump_file}"
+    subprocess.run(cmd, shell=True, check=True)
+    print(f"✅ MySQL dump created at {dump_file}")
 
-# اضافه کردن var/lib/marzban به zip
-def add_var_lib_marzban(zipf):
-    for root, dirs, files in os.walk(VAR_PATH):
-        if os.path.basename(root) == "mysql":
+
+# اضافه کردن پوشه‌ها به zip
+
+def add_folder_to_zip(zipf, folder_path, ignore_mysql_files=False):
+    for root_dir, dirs, files in os.walk(folder_path):
+        
+        if ignore_mysql_files and os.path.basename(root_dir) == "mysql":
             dirs[:] = ["db-backup"] if "db-backup" in dirs else []
             files[:] = []
         for file in files:
-            abs_path = os.path.join(root, file)
+            abs_path = os.path.join(root_dir, file)
             rel_path = os.path.relpath(abs_path, start="/")
+            size_mb = os.path.getsize(abs_path) / 1024 / 1024
+            print(f"📂 Adding {rel_path} ({size_mb:.2f} MB)")
             zipf.write(abs_path, rel_path)
 
-# اضافه کردن opt/marzban به zip
-def add_opt_marzban(zipf):
-    for root, dirs, files in os.walk(OPT_PATH):
-        for file in files:
-            abs_path = os.path.join(root, file)
-            rel_path = os.path.relpath(abs_path, start="/")
-            zipf.write(abs_path, rel_path)
 
-# ساخت بکاپ
-def create_backup():
-    backup_mysql()  # اول بکاپ mysql
-    with zipfile.ZipFile(BACKUP_FILE, "w", zipfile.ZIP_DEFLATED) as zipf:
-        add_var_lib_marzban(zipf)
-        add_opt_marzban(zipf)
-    size_mb = os.path.getsize(BACKUP_FILE) / 1024 / 1024
-    print(f"✅ Backup created: {BACKUP_FILE} ({size_mb:.2f} MB)")
-    return BACKUP_FILE
+# ساخت پارت‌های zip
 
-# ارسال به تلگرام
-async def send_backup(file_path):
-    try:
-        with open(file_path, "rb") as doc:
-            await bot.send_document(chat_id=chat_id, document=doc, caption=caption)
-        print("✅ Backup sent to Telegram successfully!")
-    except TelegramError as e:
-        print(f"❌ Telegram error: {e}")
+def create_zip_parts():
+    backup_mysql()  
 
-# حذف فایل زیپ بعد از ارسال
-def cleanup(file_path):
-    if os.path.exists(file_path):
-        os.remove(file_path)
-        print(f"🗑 Backup file {file_path} removed from server.")
+    # مسیر موقت برای zip
+    temp_zip = "marzban_temp.zip"
+    with zipfile.ZipFile(temp_zip, "w", zipfile.ZIP_DEFLATED) as zipf:
+        add_folder_to_zip(zipf, VAR_PATH, ignore_mysql_files=True)
+        
+        for root_dir, dirs, files in os.walk(OPT_PATH):
+            for file in files:
+                abs_path = os.path.join(root_dir, file)
+                rel_path = os.path.relpath(abs_path, start="/")
+                size_mb = os.path.getsize(abs_path) / 1024 / 1024
+                print(f"📂 Adding {rel_path} ({size_mb:.2f} MB)")
+                zipf.write(abs_path, rel_path)
+
+    total_size = os.path.getsize(temp_zip) / 1024 / 1024
+    print(f"📊 Total backup size: {total_size:.2f} MB")
+
+    if total_size <= 50:
+        final_name = "Marzban1.zip"
+        os.rename(temp_zip, final_name)
+        return [final_name]
+    else:
+        
+        part1 = "Marzban1.zip"
+        part2 = "Marzban2.zip"
+        with zipfile.ZipFile(temp_zip, "r") as zip_read:
+            all_files = zip_read.namelist()
+            half = len(all_files) // 2
+            with zipfile.ZipFile(part1, "w", zipfile.ZIP_DEFLATED) as z1:
+                for f in all_files[:half]:
+                    z1.writestr(f, zip_read.read(f))
+            with zipfile.ZipFile(part2, "w", zipfile.ZIP_DEFLATED) as z2:
+                for f in all_files[half:]:
+                    z2.writestr(f, zip_read.read(f))
+        os.remove(temp_zip)
+        return [part1, part2]
+
+
+# ارسال پارت‌ها به تلگرام
+
+async def send_parts_to_telegram(parts):
+    for p in parts:
+        size_mb = os.path.getsize(p) / 1024 / 1024
+        print(f"📤 Sending {p} ({size_mb:.2f} MB) to Telegram...")
+        try:
+            with open(p, "rb") as f:
+                await bot.send_document(chat_id=chat_id, document=f, caption=caption)
+            print(f"✅ {p} sent to Telegram successfully!")
+        except TelegramError as e:
+            print(f"❌ Telegram error: {e}")
+        os.remove(p)
+        print(f"🗑 {p} removed from server.")
 
 # اجرا
 if __name__ == "__main__":
-    backup_file = create_backup()
-    asyncio.run(send_backup(backup_file))
-    cleanup(backup_file)
+    parts = create_zip_parts()
+    asyncio.run(send_parts_to_telegram(parts))
+    print("🎉 Backup completed!")
